@@ -113,7 +113,7 @@ def nn_example():
     #mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
     # Python optimisation variables
-    learning_rate = 0.002
+    learning_rate = 0.0002
     epochs = 40000
     batch_size = 100
 
@@ -124,21 +124,38 @@ def nn_example():
     y = tf.placeholder(tf.float32, [None, 1])
 
     # now declare the weights connecting the input to the hidden layer
-    W1 = tf.Variable(tf.random_normal([152, 300], stddev=0.03), name='W1')
-    b1 = tf.Variable(tf.random_normal([300]), name='b1')
+    wlist=[]
+    blist=[]
+    for j in range(0, 3):
+        namew='W'+str(j)
+        nameb='b'+str(j)
+        if(j==0):
+            W1 = tf.Variable(tf.random_normal([152, 300], stddev=0.03), name=namew)
+        else:
+            W1 = tf.Variable(tf.random_normal([300, 300], stddev=0.03), name=namew)
+        b1 = tf.Variable(tf.random_normal([300]), name=nameb)
+        wlist.append(W1)
+        blist.append(b1)
     # and the weights connecting the hidden layer to the output layer
     W2 = tf.Variable(tf.random_normal([300, 1], stddev=0.03), name='W2')
     b2 = tf.Variable(tf.random_normal([1]), name='b2')
+    
+    curinput=x
+    for j in range(0,3):
+        hidden_out = tf.add(tf.matmul(curinput, wlist[j]), blist[j])
+        #hidden_out = tf.nn.relu(hidden_out)
+        curinput= tf.nn.tanh(hidden_out) 
+        
 
     # calculate the output of the hidden layer
-    hidden_out = tf.add(tf.matmul(x, W1), b1)
+    #hidden_out = tf.add(tf.matmul(x, W1), b1)
     #hidden_out = tf.nn.relu(hidden_out)
-    hidden_out = tf.nn.tanh(hidden_out)
+    #hidden_out = tf.nn.tanh(hidden_out)
 
     # now calculate the hidden layer output - in this case, let's use a softmax activated
     # output layer
     #y_ = tf.nn.softmax(tf.add(tf.matmul(hidden_out, W2), b2))
-    y_ = tf.nn.tanh(tf.add(tf.matmul(hidden_out, W2), b2))
+    y_ = tf.nn.tanh(tf.add(tf.matmul(curinput, W2), b2))
 
     # now let's define the cost function which we are going to train the model on
     y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
@@ -185,7 +202,7 @@ def nn_example():
                 avg_cost += c / total_batch
             print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost))
             if(epoch%100==0):
-                saver.save(sess, './2017/my_test_2017model',global_step=epoch)
+                saver.save(sess, './2017/my_test_2017_3layer_model',global_step=epoch)
             #summary = sess.run(merged, feed_dict={x: mnist.test.images, y: mnist.test.labels})
             #writer.add_summary(summary, epoch)
 
@@ -275,7 +292,7 @@ def  computeOneDaybySession(sess,x,predict, loaddict,Date):
 def  restore_and_compute():
     sess=tf.Session()    
     #First let's load meta graph and restore weights
-    saver = tf.train.import_meta_graph('./2017/my_test_2017model-700.meta')
+    saver = tf.train.import_meta_graph('./2017/my_test_2017_3layer_model-200.meta')
     saver.restore(sess,tf.train.latest_checkpoint('./2017'))
     trainnum,profitnum,randomlist,samlength,loaddict=nntrain.testData_B()
     tradedatelist=pricedb.buildtradedatelist(loaddict)
