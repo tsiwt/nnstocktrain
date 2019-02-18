@@ -121,36 +121,49 @@ def nn_example():
     # input x - for 28 x 28 pixels = 784
     x = tf.placeholder(tf.float32, [None, 152],name='x')
     # now declare the output data placeholder - 10 digits
-    y = tf.placeholder(tf.float32, [None, 1])
+    y = tf.placeholder(tf.float32, [None, 26])
 
     # now declare the weights connecting the input to the hidden layer
-    W1 = tf.Variable(tf.random_normal([152, 300], stddev=0.03), name='W1')
-    b1 = tf.Variable(tf.random_normal([300]), name='b1')
+    W1 = tf.Variable(tf.random_normal([152, 3000], stddev=0.03), name='W1')
+    b1 = tf.Variable(tf.random_normal([3000]), name='b1')
     # and the weights connecting the hidden layer to the output layer
-    W2 = tf.Variable(tf.random_normal([300, 1], stddev=0.03), name='W2')
-    b2 = tf.Variable(tf.random_normal([1]), name='b2')
+    W2 = tf.Variable(tf.random_normal([3000, 26], stddev=0.03), name='W2')
+    b2 = tf.Variable(tf.random_normal([26]), name='b2')
 
     # calculate the output of the hidden layer
     hidden_out = tf.add(tf.matmul(x, W1), b1)
-    #hidden_out = tf.nn.relu(hidden_out)
-    hidden_out = tf.nn.tanh(hidden_out)
+    hidden_out = tf.nn.relu(hidden_out)
+    #hidden_out = tf.nn.tanh(hidden_out)
 
     # now calculate the hidden layer output - in this case, let's use a softmax activated
     # output layer
-    #y_ = tf.nn.softmax(tf.add(tf.matmul(hidden_out, W2), b2))
-    y_ = tf.nn.tanh(tf.add(tf.matmul(hidden_out, W2), b2))
+    y_ = tf.nn.softmax(tf.add(tf.matmul(hidden_out, W2), b2),name='y_')
+    #y_ = tf.nn.tanh(tf.add(tf.matmul(hidden_out, W2), b2))
 
+
+    nextstartlist=[0.0]*26
+    templist=[]
+    for j in range(0,26):
+        nextstartlist[j]=(j-10)*0.02
+        stemp=[]
+        stemp.append(nextstartlist[j])
+        templist.append(stemp)
+    npnextstart=np.array(templist,dtype=np.float32)
+    #npnextstart.dtype='float32'
+
+    #nptransposenextstart=tf.transpose(npnextstart)
+    expectnextstart=tf.reduce_sum(tf.matmul(y_, npnextstart),name='expectnextstart')
     # now let's define the cost function which we are going to train the model on
     y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
-    #cross_entropy = -tf.reduce_mean(tf.reduce_sum(y * tf.log(y_clipped)
-    #                                              + (1 - y) * tf.log(1 - y_clipped), axis=1))
+    cross_entropy = -tf.reduce_mean(tf.reduce_sum(y * tf.log(y_clipped)
+                                                  + (1 - y) * tf.log(1 - y_clipped), axis=1))
 
     #target= tf.reduce_mean(tf.reduce_sum((y-y_)*(y-y_), axis=1))
-    target= tf.reduce_mean(tf.reduce_sum(tf.abs(y-y_), axis=1))
+    #target= tf.reduce_mean(tf.reduce_sum(tf.abs(y-y_), axis=1))
     #target= tf.reduce_mean(tf.reduce_sum((y-y_), axis=1))
     # add an optimiser
-    #optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
-    optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(target)
+    optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
+    #optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(target)
     # finally setup the initialisation operator
     init_op = tf.global_variables_initializer()
 
@@ -158,12 +171,12 @@ def nn_example():
     correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    # add a summary to store the accuracy
+    # add a summary to store the #
     tf.summary.scalar('accuracy', accuracy)
-    predict=tf.reduce_sum(y_, axis=1,name='predict')
+    #predict=tf.reduce_sum(y_, axis=1,name='predict'
     ##添加 这个目标， 以计算预测利润
     
-    trainnum,profitnum,randomlist,samlength,loaddict=nntrain.testData_B()
+    trainnum,ratiovectnum,randomlist,samlength,loaddict=nntrain.testData_C()
 
     #merged = tf.summary.merge_all()
     #writer = tf.summary.FileWriter('C:\\Users\\Andy\\PycharmProjects')
@@ -176,22 +189,23 @@ def nn_example():
         #total_batch = int(len(mnist.train.labels) / batch_size)
         total_batch = int(samlength / batch_size)
         for epoch in range(epochs):
-            randomlist=nntrain.generate_random_sample_list(trainnum,profitnum)
+            randomlist=nntrain.generate_random_sample_list(trainnum,ratiovectnum)
             avg_cost = 0
             for i in range(total_batch):
                 #batch_x, batch_y = mnist.train.next_batch(batch_size=batch_size)
-                batch_x, batch_y = nntrain.generate_batch_sample(trainnum,profitnum,randomlist, batch_size, i)
-                _, c = sess.run([optimiser, target], feed_dict={x: batch_x, y: batch_y})
+                batch_x, batch_y = nntrain.generate_batch_sample(trainnum,ratiovectnum,randomlist, batch_size, i)
+                _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
                 avg_cost += c / total_batch
             print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost))
-            if(epoch%100==0):
-                saver.save(sess, './2017/my_test_2017model',global_step=epoch)
+            if(epoch%100==20):
+                saver.save(sess, './2017/my_test_3000namey2017classifymodel',global_step=epoch)
             #summary = sess.run(merged, feed_dict={x: mnist.test.images, y: mnist.test.labels})
             #writer.add_summary(summary, epoch)
 
         print("\nTraining complete!")
         #writer.add_graph(sess.graph)
         #print(sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels}))
+        """
         codeResultDict, stockcodelist,inputlistnp=nntrain.computeOneDaybyNeuralNetwork( loaddict,   '2018-12-12')
         ##以后边数据训练预测前边日期， 这个要修改
         #print(sess.run(predict, feed_dict={x: inputlistnp}))
@@ -209,8 +223,8 @@ def nn_example():
             print (sorted_by_value[i][1]['profit'])
             print (sorted_by_value[i][1]['stockcode'])
         #saver.save(sess, './2017/my_test_2017model_final',global_step=1000)
-        saver.save(sess, './2017/my_test_2017model_final')
-        
+        saver.save(sess, './2017/my_test_2017classifymodel_final')
+        """
         
 def   restore_model_and_predict():
     sess=tf.Session()    
@@ -230,55 +244,132 @@ def   restore_model_and_predict():
   
      #Now, access the op that you want to run. 
     x=graph.get_tensor_by_name("x:0")
-    predict = graph.get_tensor_by_name("predict:0")
+    #predict = graph.get_tensor_by_name("predict:0")
+    expectnextstart=graph.get_tensor_by_name("expectnextstart:0")
  
-    npprelist= sess.run(predict,feed_dict={x: inputlistnp})
+    npprelist= sess.run(expectnextstart,feed_dict={x: inputlistnp})
     print(npprelist) 
     prelist=npprelist.tolist()
     print (sorted(prelist))
-    nntrain.putPredictProfitToCodeResultDict(codeResultDict,stockcodelist,prelist)
-    sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['predict'])
+    #nntrain.putPredictProfitToCodeResultDict(codeResultDict,stockcodelist,prelist)
+    nntrain.putPredictNextStartToCodeResultDict(codeResultDict,stockcodelist,prelist)
+    #sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['predict'])
+    sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['pureprofit'])
         #print (sorted_by_value)
     sorted_by_value.reverse()
     for i in range(0, 5):
             print (sorted_by_value[i][0])
-            print (sorted_by_value[i][1]['predict'])
-            print (sorted_by_value[i][1]['profit'])
+            print (sorted_by_value[i][1]['nextstart'])
+            print (sorted_by_value[i][1]['pureprofit'])
+            print (sorted_by_value[i][1]['startpercent'])
             print (sorted_by_value[i][1]['stockcode'])
 #This will print 60 which is calculated         
   
 def  computeOneDaybySession(sess,x,predict, loaddict,Date):
     codeResultDict, stockcodelist,inputlistnp=nntrain.computeOneDaybyNeuralNetwork( loaddict,   Date)
+    print (inputlistnp.shape)
     npprelist= sess.run(predict,feed_dict={x: inputlistnp})
-    print(npprelist) 
-    prelist=npprelist.tolist()
+    print(npprelist.shape) 
+    nextstartlist=[0.0]*26
+    templist=[]
+    for j in range(0,26):
+        nextstartlist[j]=(j-10)*0.02
+        stemp=[]
+        stemp.append(nextstartlist[j])
+        templist.append(stemp)
+    npnextstart=np.array(templist,dtype=np.float32)
+    expectnextstart=tf.matmul(npprelist, npnextstart)
+    print (expectnextstart.shape)
+    reexpectnextstart=tf.reduce_sum(expectnextstart,axis=1)
+    with sess.as_default():
+        numexpectnextstart=reexpectnextstart.eval()
+    print (type(numexpectnextstart))
+    #print(npprelist) 
+    prelist=numexpectnextstart.tolist()
+    print (prelist)
     #print (sorted(prelist))
-    nntrain.putPredictProfitToCodeResultDict(codeResultDict,stockcodelist,prelist)
-    sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['predict'])
+    #nntrain.putPredictProfitToCodeResultDict(codeResultDict,stockcodelist,prelist)
+    #sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['predict'])
         #print (sorted_by_value)
+    nntrain.putPredictNextStartToCodeResultDict(codeResultDict,stockcodelist,prelist)
+    #sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['predict'])
+    sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['pureprofit'])    
     sorted_by_value.reverse()
     totalprofit=0.0
     print ("total stocks %d" %(len(sorted_by_value)))
     for i in range(0, 5):
             print (sorted_by_value[i][0])
-            print (sorted_by_value[i][1]['predict'])
+            print (sorted_by_value[i][1]['pureprofit'])
             print (sorted_by_value[i][1]['profit'])
+            print (sorted_by_value[i][1]['nextstart'])
+            print (sorted_by_value[i][1]['startpercent'])
             print (sorted_by_value[i][1]['stockcode'])
             totalprofit+=sorted_by_value[i][1]['profit']
-            averprofit=totalprofit/5.0
-            print (averprofit)
+    averprofit=totalprofit/5.0
+    print ('aver')
+    print (averprofit)
     redict={}
     redict[Date]=averprofit
     return redict
 
 
+
+def  computeOneDaybySessionMax(sess,x,predict, loaddict,Date):
+    codeResultDict, stockcodelist,inputlistnp=nntrain.computeOneDaybyNeuralNetwork( loaddict,   Date)
+    print (inputlistnp.shape)
+    npprelist= sess.run(predict,feed_dict={x: inputlistnp})
+    maxindex=tf.argmax(npprelist, 1)
+    with sess.as_default():
+        nummaxindex=maxindex.eval()
+    print (type(nummaxindex))
+    pymaxindex=nummaxindex.tolist()
+    print (pymaxindex)
+    prelist=[]
+    for idx, value in enumerate(pymaxindex):
+        prevalue=(value-10)*0.02
+        prelist.append(prevalue)
+        
+    print(npprelist.shape) 
+    print(maxindex.shape) 
+   
+    print (prelist)
+    #print (sorted(prelist))
+    #nntrain.putPredictProfitToCodeResultDict(codeResultDict,stockcodelist,prelist)
+    #sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['predict'])
+        #print (sorted_by_value)
+    nntrain.putPredictNextStartToCodeResultDict(codeResultDict,stockcodelist,prelist)
+    #sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['predict'])
+    sorted_by_value = sorted(codeResultDict.items(), key=lambda kv: kv[1]['pureprofit'])    
+    sorted_by_value.reverse()
+    totalprofit=0.0
+    print ("total stocks %d" %(len(sorted_by_value)))
+    for i in range(0, 5):
+            print (sorted_by_value[i][0])
+            print (sorted_by_value[i][1]['pureprofit'])
+            print (sorted_by_value[i][1]['profit'])
+            print (sorted_by_value[i][1]['nextstart'])
+            print (sorted_by_value[i][1]['startpercent'])
+            print (sorted_by_value[i][1]['stockcode'])
+            totalprofit+=sorted_by_value[i][1]['profit']
+    averprofit=totalprofit/5.0
+    print ('aver')
+    print (averprofit)
+    redict={}
+    redict[Date]=averprofit
+    return redict
+
+
+
+
+
+
+
 def  restore_and_compute():
     sess=tf.Session()    
     #First let's load meta graph and restore weights
-    saver = tf.train.import_meta_graph('./2017/my_test_2017model-700.meta')
+    saver = tf.train.import_meta_graph('./2017/my_test_3000namey2017classifymodel-20.meta')
     saver.restore(sess,tf.train.latest_checkpoint('./2017'))
-    trainnum,profitnum,randomlist,samlength,loaddict=nntrain.testData_B()
-    tradedatelist=pricedb.buildtradedatelist(loaddict)
+   
     graph = tf.get_default_graph()
      #w1 = graph.get_tensor_by_name("w1:0")
      #w2 = graph.get_tensor_by_name("w2:0")
@@ -286,7 +377,27 @@ def  restore_and_compute():
   
      #Now, access the op that you want to run. 
     x=graph.get_tensor_by_name("x:0")
-    predict = graph.get_tensor_by_name("predict:0")
+    #expectnextstart=graph.get_tensor_by_name("expectnextstart:0")
+    
+    #predict = graph.get_tensor_by_name("predict:0")
+    y_=graph.get_tensor_by_name("y_:0")
+    
+    #expectnextstart=graph.get_tensor_by_name("expectnextstart:0")
+    #nextstartlist=[0.0]*26
+    #templist=[]
+    #for j in range(0,26):
+    #    nextstartlist[j]=(j-10)*0.02
+    #    stemp=[]
+    #    stemp.append(nextstartlist[j])
+    #    templist.append(stemp)
+    #npnextstart=np.array(templist,dtype=np.float32)
+    #npnextstart.dtype='float32'
+
+    #nptransposenextstart=tf.transpose(npnextstart)
+    #expectnextstart=tf.reduce_sum(tf.matmul(y_, npnextstart))
+    
+    trainnum,profitnum,randomlist,samlength,loaddict=nntrain.testData_C()
+    tradedatelist=pricedb.buildtradedatelist(loaddict)
     
     startdate='2018-01-01'
     enddate='2018-12-28'
@@ -309,7 +420,8 @@ def  restore_and_compute():
     for j in range(startidx, endidx):
         
            curday=tradedatelist[j]
-           rt=computeOneDaybySession(sess,x,predict, loaddict,curday)
+           rt=computeOneDaybySession(sess,x,y_, loaddict,curday)
+           #rt=computeOneDaybySessionMax(sess,x,y_, loaddict,curday)
            resudict.update(rt)
     
     

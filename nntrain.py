@@ -25,11 +25,13 @@ import  random
 from datetime import datetime
 import tensorflow as tf
 import sys
+import traceback
 
 def  build_train_period_samples(loaddict,DataStartDate,DataEndDate,trainStartDate,trainEndDate,trainDays,pointpricelist):
     traindict={}
     traindict['traindata']=[]
     traindict['profit']=[]
+    traindict['ratiovec']=[]
     pointpricelist=[]
     for curcode in loaddict:
         loaddict[curcode]['splitidx']=[]
@@ -140,8 +142,23 @@ def  build_train_period_samples(loaddict,DataStartDate,DataEndDate,trainStartDat
             #profit=profit*4
             profit=loaddict[curcode]['pricesrows'][idx+1]['startprice']/loaddict[curcode]['pricesrows'][idx]['startprice']-1.0 
             #下标必须相同
+            ratio2days=loaddict[curcode]['pricesrows'][idx+1]['startprice']/loaddict[curcode]['pricesrows'][idx-1]['endprice']-1.0 
+            ratioindex= (int)(ratio2days/0.02)+10
+            array=[0.0]*26
+            try:
+                array[ratioindex]=1.0
+            except:
+                print(ratioindex)
+                print ("error")
+                print (curcode)
+                print(loaddict[curcode]['pricesrows'][idx+1]['tradedate'])
+                print(loaddict[curcode]['pricesrows'][idx-1]['tradedate'])
+                print(loaddict[curcode]['pricesrows'][idx+1]['startprice']) 
+                print(loaddict[curcode]['pricesrows'][idx-1]['endprice']) 
+                #input()
             traindict['traindata'].append(traindatalist)
             traindict['profit'].append(profit)
+            traindict['ratiovec'].append(array)
             pointpricelist.append(loaddict[curcode]['pricesrows'][idx])    
             loaddict[curcode]['pricesrows'][idx]['trainindex']=len(traindict['traindata'])-1    
     return traindict             
@@ -181,13 +198,24 @@ def buildOneInputAndprofit(pricerows,   k , trainDays):
                 traindatalist.append(volumeratio)     
 
     profit=pricerows[k+1]['startprice']/pricerows[k]['startprice']-1.0
+    ratio2days=pricerows[k+1]['startprice']/pricerows[k-1]['endprice']-1.0
+    ratioindex= (int)(ratio2days/0.02+10)
+    array=np.zeros(26)
+    array[ratioindex]=1.0
+    
+
 
     resultdict={}
     resultdict['traindatalist']=traindatalist
     resultdict['profit']=profit
     resultdict['stockcode']=pricerows[k]['stockcode']
     resultdict['tradedate']=pricerows[k]['tradedate']
+    resultdict['ratio2days']=ratio2days
+    resultdict['ratioindex']=ratioindex
+    resultdict['array']=array
+    resultdict['startpercent']=pricerows[k]['startpercent']
     return  resultdict
+
 
 
 
@@ -210,6 +238,9 @@ def  computeOneDaybyNeuralNetwork( loaddict,   curtradedate):
             curresult=buildOneInputAndprofit(loaddict[code]['pricesrows'], codedayindex , trainDays)
         except:
             curresult=None
+            tb = traceback.format_exc()
+            print(tb)
+
             continue
             
         #print ("processing")
@@ -252,8 +283,12 @@ def  putPredictProfitToCodeResultDict(codeResultDict,stockcodelist,predictlist):
       for idx, value in   enumerate(predictlist):
           codeResultDict[stockcodelist[idx]]['predict']=value
           
-
-
+def  putPredictNextStartToCodeResultDict(codeResultDict,stockcodelist,predictlist):
+      if(len(stockcodelist)!=len(predictlist)):
+          print ("Heavy error length of stockcodelist and predictlist not equal")
+      for idx, value in   enumerate(predictlist):
+          codeResultDict[stockcodelist[idx]]['nextstart']=value
+          codeResultDict[stockcodelist[idx]]['pureprofit']=codeResultDict[stockcodelist[idx]]['nextstart']-codeResultDict[stockcodelist[idx]]['startpercent']
 
 #    sqlite> SELECT * FROM stockquote where stockcode='600418' and tradedate>'2018-03-20';
 def  testData():
@@ -313,6 +348,43 @@ def  testData_B():
     return trainnum,profitnum,randomlist,samlength,loaddict
 
 
+
+
+def  testData_C():  #this is for classify
+    loaddict= pricedb.loadstockdatatodict('C://good//mypanel//turnover2500db.db',  '2016-06-01' ,  '2050-11-30')
+    print ("load complted")
+    pointpricelist=[]
+    traindict=build_train_period_samples(loaddict,'2017-07-04','2019-01-04','2018-01-03','2018-12-29',30,pointpricelist)
+    #traindict=build_train_period_samples(loaddict,'2016-07-01','2019-01-04','2017-01-03','2017-12-29',30,pointpricelist)
+    """
+    for i in range(-1,-200, -1):
+        if('trainindex' not in loaddict['600418']['pricesrows'][i]): 
+            continue
+        print (loaddict['600418']['pricesrows'][i]['tradedate'])
+        print (traindict['traindata'][loaddict['600418']['pricesrows'][i]['trainindex']])
+        print (traindict['profit'][loaddict['600418']['pricesrows'][i]['trainindex']])
+    
+        #print (loaddict['600418']['pricesrows'])
+    """    
+    trainnum= np.array(traindict['traindata'])
+    #ratiovectnum=np.array(traindict['array'])
+    ratiovectnum=np.array(traindict['ratiovec'])
+    #fullength=len()
+    print (trainnum.shape)
+    print (ratiovectnum.shape)
+    randomlist=generate_random_sample_list(trainnum,ratiovectnum)
+    samlength=(int)(len(traindict['ratiovec']))
+    return trainnum,ratiovectnum,randomlist,samlength,loaddict
+
+
+
+
+
+
+
+
+
+
        
 
 def  generate_random_sample_list(trainnum,profitnum):
@@ -343,10 +415,10 @@ def  generate_batch_sample(trainnum,profitnum,randomlist, bsize, bnum):
      bprofitlist=[]
      for j in range(sidx,sidx+bsize,1 ):
          btrainlist.append(trainnum[randomlist[j]])
-         templist=[]
-         templist.append(profitnum[randomlist[j]])
-         bprofitlist.append(templist)
-         #bprofitlist.append(profitnum[randomlist[j]])
+         #templist=[]
+         #templist.append(profitnum[randomlist[j]])
+         #bprofitlist.append(templist)
+         bprofitlist.append(profitnum[randomlist[j]])
        
      nbtrainlist=np.array(btrainlist)
      nbprofitlist=np.array(bprofitlist)  
